@@ -1,6 +1,13 @@
+import os
+
 import numpy as np
 from pathlib import Path
 from collections import Counter
+
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path='check_shapes.env')
+KEYPOINT_FOLDER = os.getenv("KEYPOINT_FOLDER")
 
 def analyze_npy_shapes(folder):
     folder = Path(folder)
@@ -29,5 +36,4 @@ def analyze_npy_shapes(folder):
             print(f"{f} -> {err}")
 
 if __name__ == "__main__":
-    folder_path = "folder/"
-    analyze_npy_shapes(folder_path)
+    analyze_npy_shapes(KEYPOINT_FOLDER)

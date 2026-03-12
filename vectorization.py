@@ -1,8 +1,16 @@
+import os
+
 import cv2
 import numpy as np
 import mediapipe as mp
 from pathlib import Path
 import concurrent.futures
+
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path='vectorization.env')
+SOURCE_DIR = os.getenv("SOURCE_DIR")
+TARGET_DIR = os.getenv("TARGET_DIR")
 
 pose_indices = [11, 12, 13, 14, 15, 16]
 face_indices = list(range(132))
@@ -104,6 +112,4 @@ def vectorize_dataset(source_dir, target_dir):
                 print(f"[{completed}/{total_videos}] {result}")
 
 if __name__ == '__main__':
-    source_directory = 'source/'
-    target_directory = 'target/'
-    vectorize_dataset(source_directory, target_directory)
+    vectorize_dataset(SOURCE_DIR, TARGET_DIR)

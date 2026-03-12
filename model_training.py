@@ -9,8 +9,18 @@ import torch.nn as nn
 import torch.optim as optim
 from collections import Counter, defaultdict
 import numpy as np
+from dotenv import load_dotenv
 from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
+
+load_dotenv(dotenv_path="model_training.env")
+JSON_TRAIN = os.getenv("JSON_TRAIN")
+JSON_VAL = os.getenv("JSON_VAL")
+DIR_TRAIN = os.getenv("DIR_TRAIN")
+DIR_VAL = os.getenv("DIR_VAL")
+CHECKPOINT_DIR = Path(os.getenv("CHECKPOINT_DIR"))
+FINAL_MODEL_PATH = CHECKPOINT_DIR / 'model_final.pth'
+LABEL_MAPPING = CHECKPOINT_DIR / 'label_mapping.json'
 
 def get_top_k_label_mapping(json_paths, top_k=100):
     label_counts = Counter()
@@ -190,27 +200,21 @@ def evaluate_loader(model, loader, criterion, device):
     return avg_loss, acc
 
 def train_model():
-    json_train = 'MSASL_train.json'
-    json_val = 'MSASL_val.json'
-    dir_train = 'train_dir/'
-    dir_val = 'val_dir/'
-    
-    checkpoint_dir = Path('checkpoints_transformer/')
-    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
 
     top_k_classes = 100
-    label_mapping = get_top_k_label_mapping([json_train, json_val], top_k=top_k_classes)
+    label_mapping = get_top_k_label_mapping([JSON_TRAIN, JSON_VAL], top_k=top_k_classes)
     num_classes = len(label_mapping)
     
     print(f"Prepared mapping for top {num_classes} unique classes.\n")
 
-    with open(checkpoint_dir / 'label_mapping.json', 'w', encoding='utf-8') as f:
+    with open(LABEL_MAPPING, 'w', encoding='utf-8') as f:
         json.dump(label_mapping, f, ensure_ascii=False, indent=4)
 
-    train_dataset = MSASLDataset(json_train, dir_train, label_mapping, oversample=True, augment=True)
+    train_dataset = MSASLDataset(JSON_TRAIN, DIR_TRAIN, label_mapping, oversample=True, augment=True)
     train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=4)
 
-    val_dataset = MSASLDataset(json_val, dir_val, label_mapping, oversample=False, augment=False)
+    val_dataset = MSASLDataset(JSON_VAL, DIR_VAL, label_mapping, oversample=False, augment=False)
     val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False, num_workers=4)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -266,19 +270,18 @@ def train_model():
               f"Elapsed: {format_time(elapsed_time)} ETA: {format_time(eta)}")
 
         if (epoch + 1) % 5 == 0:
-            checkpoint_path = checkpoint_dir / f'model_epoch_{epoch+1}.pth'
+            checkpoint_path = CHECKPOINT_DIR / f'model_epoch_{epoch + 1}.pth'
             torch.save({
                 'epoch': epoch + 1,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
             }, checkpoint_path)
 
-    final_model_path = checkpoint_dir / 'model_final.pth'
     torch.save({
         'epoch': num_epochs,
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
-    }, final_model_path)
+    }, FINAL_MODEL_PATH)
 
 if __name__ == '__main__':
     train_model()

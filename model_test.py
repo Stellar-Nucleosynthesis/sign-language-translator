@@ -1,10 +1,21 @@
 import json
+import os
 import re
 import torch
 import torch.nn as nn
 import numpy as np
+from dotenv import load_dotenv
 from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
+
+load_dotenv(dotenv_path='model_test.env')
+JSON_VAL = os.getenv("JSON_VAL")
+DIR_VAL = os.getenv("DIR_VAL")
+JSON_TEST = os.getenv("JSON_TEST")
+DIR_TEST = os.getenv("DIR_TEST")
+CHECKPOINT_DIR = Path(os.getenv("CHECKPOINT_DIR"))
+MAPPING_PATH = CHECKPOINT_DIR / 'label_mapping.json'
+MODEL_PATH = CHECKPOINT_DIR / 'model_final.pth'
 
 class MSASLDataset(Dataset):
     def __init__(self, json_path, npy_dir, label_mapping):
@@ -81,28 +92,19 @@ def evaluate_loader(model, loader, device):
     return 0.0, 0, 0
 
 def test_model():
-    json_val = 'MSASL_val.json'
-    dir_val = 'val_dir/'
-    json_test = 'MSASL_test.json'
-    dir_test = 'test_dir/'
-    
-    checkpoint_dir = Path('checkpoints/')
-    mapping_path = checkpoint_dir / 'label_mapping.json'
-    model_path = checkpoint_dir / 'model_final.pth'
-
-    if not mapping_path.exists():
+    if not MAPPING_PATH.exists():
         print("Error: label_mapping.json not found in checkpoints!")
         return
 
-    with open(mapping_path, 'r', encoding='utf-8') as f:
+    with open(MAPPING_PATH, 'r', encoding='utf-8') as f:
         label_mapping = json.load(f)
 
     num_classes = len(label_mapping)
     
-    val_dataset = MSASLDataset(json_val, dir_val, label_mapping)
+    val_dataset = MSASLDataset(JSON_VAL, DIR_VAL, label_mapping)
     val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, num_workers=4)
     
-    test_dataset = MSASLDataset(json_test, dir_test, label_mapping)
+    test_dataset = MSASLDataset(JSON_TEST, DIR_TEST, label_mapping)
     test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=4)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -116,12 +118,12 @@ def test_model():
 
     model = GestureLSTM(input_size, hidden_size, num_layers, num_classes).to(device)
 
-    if not model_path.exists():
-        print(f"Error: Checkpoint not found at {model_path}")
+    if not MODEL_PATH.exists():
+        print(f"Error: Checkpoint not found at {MODEL_PATH}")
         return
 
     print("Loading model weights...")
-    checkpoint = torch.load(model_path)
+    checkpoint = torch.load(MODEL_PATH)
     model.load_state_dict(checkpoint['model_state_dict'])
     
     model.eval()

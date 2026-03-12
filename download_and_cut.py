@@ -3,11 +3,14 @@ import os
 import subprocess
 import concurrent.futures
 import threading
+
+from dotenv import load_dotenv
 from yt_dlp import YoutubeDL
 
-DATASET_JSON = "MSASL_test.json"
-RAW_VIDEO_DIR = "raw_videos"
-CLIP_DIR = "videos_test"
+load_dotenv(dotenv_path='download_and_cut.env')
+DATASET_JSON = os.getenv("DATASET_JSON")
+RAW_VIDEO_DIR = os.getenv("RAW_VIDEO_DIR")
+CLIP_DIR = os.getenv("CLIP_DIR")
 
 os.makedirs(RAW_VIDEO_DIR, exist_ok=True)
 os.makedirs(CLIP_DIR, exist_ok=True)

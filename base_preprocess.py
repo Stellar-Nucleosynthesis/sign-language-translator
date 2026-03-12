@@ -8,6 +8,13 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 import sys
 
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path='base_preprocess.env')
+JSON_PATH = os.getenv("JSON_PATH")
+INPUT_DIR = os.getenv("INPUT_DIR")
+OUTPUT_DIR = os.getenv("OUTPUT_DIR")
+
 def get_file_hash(filepath):
     hasher = hashlib.md5()
     with open(filepath, 'rb') as f:
@@ -107,7 +114,7 @@ def main(json_path, input_dir, output_dir):
 
 if __name__ == '__main__':
     main(
-        'MSASL_val.json',
-        'videosl',
-        'processed_videos'
+        JSON_PATH,
+        INPUT_DIR,
+        OUTPUT_DIR
     )

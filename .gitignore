@@ -7,7 +7,8 @@
 __pycache__/
 venv/
 env/
-.env
+*.env
+.conf
 pip-log.txt
 pip-delete-this-env.log
 
