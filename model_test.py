@@ -1,4 +1,3 @@
-import os
 import json
 import re
 import torch
@@ -82,12 +81,12 @@ def evaluate_loader(model, loader, device):
     return 0.0, 0, 0
 
 def test_model():
-    json_val = '/mnt/c/Workstudy/CV/data/annotations/MSASL_val.json'
-    dir_val = '/mnt/c/Workstudy/CV/keypoints_val'
-    json_test = '/mnt/c/Workstudy/CV/data/annotations/MSASL_test.json'
-    dir_test = '/mnt/c/Workstudy/CV/keypoints_test'
+    json_val = 'MSASL_val.json'
+    dir_val = 'val_dir/'
+    json_test = 'MSASL_test.json'
+    dir_test = 'test_dir/'
     
-    checkpoint_dir = Path('/mnt/c/Workstudy/CV/checkpoints')
+    checkpoint_dir = Path('checkpoints/')
     mapping_path = checkpoint_dir / 'label_mapping.json'
     model_path = checkpoint_dir / 'model_final.pth'
 

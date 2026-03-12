@@ -3,7 +3,6 @@ import numpy as np
 import mediapipe as mp
 from pathlib import Path
 import concurrent.futures
-import os
 
 pose_indices = [11, 12, 13, 14, 15, 16]
 face_indices = list(range(132))
@@ -105,6 +104,6 @@ def vectorize_dataset(source_dir, target_dir):
                 print(f"[{completed}/{total_videos}] {result}")
 
 if __name__ == '__main__':
-    source_directory = '/mnt/c/Workstudy/CV/processed_videos_train'
-    target_directory = '/mnt/c/Workstudy/CV/keypoints_train_540'
+    source_directory = 'source/'
+    target_directory = 'target/'
     vectorize_dataset(source_directory, target_directory)

@@ -107,7 +107,7 @@ def main(json_path, input_dir, output_dir):
 
 if __name__ == '__main__':
     main(
-        '/mnt/c/Workstudy/CV/data/annotations/MSASL_val.json',
-        '/mnt/c/Workstudy/CV/data/videos_val',
-        '/mnt/c/Workstudy/CV/processed_videos_val'
+        'MSASL_val.json',
+        'videosl',
+        'processed_videos'
     )

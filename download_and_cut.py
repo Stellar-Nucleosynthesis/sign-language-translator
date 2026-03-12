@@ -5,7 +5,7 @@ import concurrent.futures
 import threading
 from yt_dlp import YoutubeDL
 
-DATASET_JSON = "/mnt/c/Workstudy/CV/data/annotations/MSASL_test.json"
+DATASET_JSON = "MSASL_test.json"
 RAW_VIDEO_DIR = "raw_videos"
 CLIP_DIR = "videos_test"
 
