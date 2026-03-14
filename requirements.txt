@@ -1,3 +1,4 @@
+tqdm
 spacy
 gensim
 python-dotenv
