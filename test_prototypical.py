@@ -1,144 +1,22 @@
 import os
-import json
-import re
-import time
-import datetime
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
-from torch.utils.data import Dataset, DataLoader
-from pathlib import Path
+from torch.utils.data import DataLoader
 from collections import defaultdict
 from tqdm import tqdm
 
-class KinematicDataset(Dataset):
-    def __init__(self, json_path, npy_dir, word_to_idx=None, is_train=False):
-        with open(json_path, 'r', encoding='utf-8') as f:
-            self.raw_data = json.load(f)
-        self.npy_dir = Path(npy_dir)
-        self.is_train = is_train
-        self.valid_samples = []
-        
-        self.word_to_idx = word_to_idx if word_to_idx is not None else {}
-        if word_to_idx is None:
-            idx_counter = 0
-            for item in self.raw_data:
-                label_text = str(item.get('text', item.get('label', 'unknown'))).lower().strip()
-                if label_text not in self.word_to_idx:
-                    self.word_to_idx[label_text] = idx_counter
-                    idx_counter += 1
-
-        for npy_file in self.npy_dir.glob('*.npy'):
-            match = re.search(r'(\d+)\.npy$', npy_file.name)
-            if not match:
-                continue
-            idx = int(match.group(1))
-            if idx >= len(self.raw_data):
-                continue
-            raw_label = self.raw_data[idx].get('text', self.raw_data[idx].get('label', 'unknown'))
-            label_text = str(raw_label).lower().strip()
-            
-            if label_text in self.word_to_idx:
-                try:
-                    _ = np.load(npy_file, mmap_mode='r')
-                    self.valid_samples.append({
-                        'file_path': npy_file, 
-                        'label_idx': self.word_to_idx[label_text],
-                        'label_text': label_text
-                    })
-                except Exception:
-                    pass
-
-    def __len__(self):
-        return len(self.valid_samples)
-
-    def __getitem__(self, idx):
-        sample = self.valid_samples[idx]
-        try:
-            keypoints = np.load(sample['file_path'])
-        except Exception:
-            keypoints = np.zeros((30, 138), dtype=np.float32)
-        
-        target_frames = 30
-        current_frames = keypoints.shape[0]
-        
-        if current_frames < target_frames:
-            padding = np.zeros((target_frames - current_frames, keypoints.shape[1]), dtype=np.float32)
-            keypoints = np.vstack((keypoints, padding))
-        elif current_frames > target_frames:
-            indices = np.linspace(0, current_frames - 1, target_frames).astype(int)
-            keypoints = keypoints[indices]
-            
-        keypoints = keypoints.reshape(target_frames, 46, 3)
-        centers = (keypoints[:, 0, :] + keypoints[:, 1, :]) / 2.0
-        keypoints = keypoints - centers[:, np.newaxis, :]
-        shoulder_dist = np.linalg.norm(keypoints[:, 0, :] - keypoints[:, 1, :], axis=-1, keepdims=True)
-        shoulder_dist = np.where(shoulder_dist < 1e-5, 1.0, shoulder_dist)
-        keypoints = keypoints / shoulder_dist[:, np.newaxis, :]
-        
-        if self.is_train:
-            scale = np.random.uniform(0.9, 1.1)
-            keypoints = keypoints * scale
-            shift = np.random.uniform(-0.05, 0.05, (1, 1, 3)).astype(np.float32)
-            keypoints = keypoints + shift
-            noise = np.random.normal(0, 0.005, keypoints.shape).astype(np.float32)
-            keypoints = keypoints + noise
-            
-        keypoints = keypoints.reshape(target_frames, 138)
-        tensor_data = torch.FloatTensor(keypoints)
-        return tensor_data, sample['label_idx'], sample['label_text']
-
-class Attention(nn.Module):
-    def __init__(self, hidden_size):
-        super().__init__()
-        self.attention = nn.Linear(hidden_size, 1, bias=False)
-
-    def forward(self, x):
-        scores = self.attention(x).squeeze(-1)
-        weights = torch.softmax(scores, dim=-1)
-        context = torch.bmm(weights.unsqueeze(1), x).squeeze(1)
-        return context
-
-class KinematicEncoder(nn.Module):
-    def __init__(self, input_size=138, hidden_size=256, latent_size=256, num_classes=800, dropout=0.5):
-        super().__init__()
-        self.conv1 = nn.Conv1d(in_channels=input_size, out_channels=hidden_size, kernel_size=3, padding=1)
-        self.bn_conv = nn.BatchNorm1d(hidden_size)
-        self.relu = nn.ReLU()
-        self.lstm = nn.LSTM(hidden_size, hidden_size, num_layers=2, batch_first=True, bidirectional=True, dropout=dropout)
-        self.attention = Attention(hidden_size * 2)
-        
-        self.embed = nn.Sequential(
-            nn.Dropout(dropout),
-            nn.Linear(hidden_size * 2, latent_size),
-            nn.BatchNorm1d(latent_size),
-            nn.ReLU()
-        )
-        self.classifier = nn.Linear(latent_size, num_classes)
-
-    def get_embedding(self, x):
-        x = x.permute(0, 2, 1)
-        x = self.conv1(x)
-        x = self.bn_conv(x)
-        x = self.relu(x)
-        x = x.permute(0, 2, 1)
-        out, _ = self.lstm(x)
-        out = self.attention(out)
-        return self.embed(out)
-
-    def forward(self, x):
-        emb = self.get_embedding(x)
-        return self.classifier(emb)
+from prototypical_pipeline import KinematicDataset, KinematicEncoder
 
 def run_prototypical_test():
-    json_train = '/mnt/c/Workstudy/CV/data/annotations/MSASL_train.json'
-    dir_train = '/mnt/c/Workstudy/CV/keypoints_train_filtered'
-    json_test = '/mnt/c/Workstudy/CV/data/annotations/MSASL_test.json'
-    dir_test = '/mnt/c/Workstudy/CV/keypoints_test_filtered'
+    json_train = 'data/MSASL_train.json'
+    dir_train = 'data/keypoints_train_filtered'
+    json_test = 'data/MSASL_test.json'
+    dir_test = 'data/keypoints_test_filtered'
     
-    model_save_path = '/mnt/c/Workstudy/CV/encoder.pth'
-    prototypes_save_path = '/mnt/c/Workstudy/CV/prototypes.pt'
+    model_save_path = 'data/encoder.pth'
+    prototypes_save_path = 'data/prototypes.pt'
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"[INFO] Using device: {device}\n")

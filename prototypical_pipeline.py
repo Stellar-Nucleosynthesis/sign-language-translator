@@ -1,16 +1,21 @@
-import os
 import json
+import os
 import re
-import time
-import datetime
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
+from dotenv import load_dotenv
 from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
 from collections import defaultdict
 from tqdm import tqdm
+
+load_dotenv(dotenv_path='prototypical_pipeline.env')
+JSON_TRAIN = os.getenv("JSON_TRAIN")
+DIR_TRAIN = os.getenv("DIR_TRAIN")
+JSON_VAL = os.getenv("JSON_VAL")
+DIR_VAL = os.getenv("DIR_VAL")
 
 class KinematicDataset(Dataset):
     def __init__(self, json_path, npy_dir, word_to_idx=None, is_train=False):
@@ -69,7 +74,7 @@ class KinematicDataset(Dataset):
         elif current_frames > target_frames:
             indices = np.linspace(0, current_frames - 1, target_frames).astype(int)
             keypoints = keypoints[indices]
-            
+
         keypoints = keypoints.reshape(target_frames, 46, 3)
         centers = (keypoints[:, 0, :] + keypoints[:, 1, :]) / 2.0
         keypoints = keypoints - centers[:, np.newaxis, :]
@@ -132,16 +137,11 @@ class KinematicEncoder(nn.Module):
         return self.classifier(emb)
 
 def run_prototypical_pipeline():
-    json_train = '/mnt/c/Workstudy/CV/data/annotations/MSASL_train.json'
-    dir_train = '/mnt/c/Workstudy/CV/keypoints_train_filtered'
-    json_val = '/mnt/c/Workstudy/CV/data/annotations/MSASL_val.json'
-    dir_val = '/mnt/c/Workstudy/CV/keypoints_val_filtered'
-    
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"[INFO] Using device: {device}\n")
     
-    train_dataset = KinematicDataset(json_train, dir_train, is_train=True)
-    val_dataset = KinematicDataset(json_val, dir_val, word_to_idx=train_dataset.word_to_idx, is_train=False)
+    train_dataset = KinematicDataset(JSON_TRAIN, DIR_TRAIN, is_train=True)
+    val_dataset = KinematicDataset(JSON_VAL, DIR_VAL, word_to_idx=train_dataset.word_to_idx, is_train=False)
     
     num_classes = len(train_dataset.word_to_idx)
     print(f"[INFO] Found {num_classes} unique words.")
@@ -184,7 +184,7 @@ def run_prototypical_pipeline():
     model.eval()
     word_embeddings = defaultdict(list)
     
-    train_eval_dataset = KinematicDataset(json_train, dir_train, word_to_idx=train_dataset.word_to_idx, is_train=False)
+    train_eval_dataset = KinematicDataset(JSON_TRAIN, DIR_TRAIN, word_to_idx=train_dataset.word_to_idx, is_train=False)
     seq_loader = DataLoader(train_eval_dataset, batch_size=128, shuffle=False, num_workers=4)
     
     with torch.no_grad():

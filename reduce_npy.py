@@ -2,6 +2,16 @@ import os
 import numpy as np
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path='reduce_npy.env')
+TRAIN_INPUT = os.getenv("TRAIN_INPUT")
+TRAIN_OUTPUT = os.getenv("TRAIN_OUTPUT")
+TEST_INPUT = os.getenv("TEST_INPUT")
+TEST_OUTPUT = os.getenv("TEST_OUTPUT")
+VAL_INPUT = os.getenv("VAL_INPUT")
+VAL_OUTPUT = os.getenv("VAL_OUTPUT")
+
 SELECTED_INDICES = np.concatenate([np.array([2, 3, 4, 5]), np.arange(138, 180)])
 NUM_RELEVANT_POINTS = len(SELECTED_INDICES)
 
@@ -38,12 +48,11 @@ def filter_keypoints(input_dir, output_dir):
     print("-" * 50)
 
 if __name__ == '__main__':
-    train_input = '/mnt/c/Workstudy/CV/keypoints_test_540'
-    train_output = '/mnt/c/Workstudy/CV/keypoints_test_filtered'
     print(f"[INFO] Processing Train dataset...")
-    filter_keypoints(train_input, train_output)
-    
-    val_input = '/mnt/c/Workstudy/CV/keypoints_val_540'
-    val_output = '/mnt/c/Workstudy/CV/keypoints_val_filtered'
+    filter_keypoints(TRAIN_INPUT, TRAIN_OUTPUT)
+
+    print(f"[INFO] Processing Test dataset...")
+    filter_keypoints(TEST_INPUT, TEST_OUTPUT)
+
     print(f"[INFO] Processing Validation dataset...")
-    filter_keypoints(val_input, val_output)
+    filter_keypoints(VAL_INPUT, VAL_OUTPUT)
