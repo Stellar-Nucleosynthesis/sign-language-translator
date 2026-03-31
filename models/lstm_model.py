@@ -1,14 +1,14 @@
 import json
 import os
-import re
 import torch
 import torch.nn as nn
-import numpy as np
 from dotenv import load_dotenv
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 from pathlib import Path
 
-load_dotenv(dotenv_path='model_test.env')
+from datasets.msasl_dataset import MSASLDataset
+
+load_dotenv(dotenv_path='lstm_model.env')
 JSON_VAL = os.getenv("JSON_VAL")
 DIR_VAL = os.getenv("DIR_VAL")
 JSON_TEST = os.getenv("JSON_TEST")
@@ -16,50 +16,6 @@ DIR_TEST = os.getenv("DIR_TEST")
 CHECKPOINT_DIR = Path(os.getenv("CHECKPOINT_DIR"))
 MAPPING_PATH = CHECKPOINT_DIR / 'label_mapping.json'
 MODEL_PATH = CHECKPOINT_DIR / 'model_final.pth'
-
-class MSASLDataset(Dataset):
-    def __init__(self, json_path, npy_dir, label_mapping):
-        with open(json_path, 'r', encoding='utf-8') as f:
-            self.raw_data = json.load(f)
-        
-        self.npy_dir = Path(npy_dir)
-        self.valid_samples = []
-        
-        for npy_file in self.npy_dir.glob('*.npy'):
-            match = re.search(r'(\d+)\.npy$', npy_file.name)
-            if not match:
-                continue
-                
-            idx = int(match.group(1))
-            if idx >= len(self.raw_data):
-                continue
-
-            label_text = self.raw_data[idx].get('text', self.raw_data[idx].get('label', 'unknown'))
-            if label_text in label_mapping:
-                self.valid_samples.append({
-                    'file_path': npy_file,
-                    'label_idx': label_mapping[label_text]
-                })
-
-    def __len__(self):
-        return len(self.valid_samples)
-
-    def __getitem__(self, idx):
-        sample = self.valid_samples[idx]
-        keypoints = np.load(sample['file_path'])
-        
-        target_frames = 30
-        current_frames = keypoints.shape[0]
-        
-        if current_frames < target_frames:
-            padding = np.zeros((target_frames - current_frames, keypoints.shape[1]), dtype=np.float32)
-            keypoints = np.vstack((keypoints, padding))
-        elif current_frames > target_frames:
-            keypoints = keypoints[:target_frames, :]
-            
-        tensor_data = torch.FloatTensor(keypoints)
-        label = torch.tensor(sample['label_idx'], dtype=torch.long)
-        return tensor_data, label
 
 class GestureLSTM(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, num_classes):

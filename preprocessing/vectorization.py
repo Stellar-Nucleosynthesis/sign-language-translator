@@ -15,18 +15,19 @@ TARGET_DIR = os.getenv("TARGET_DIR")
 pose_indices = [11, 12, 13, 14, 15, 16]
 face_indices = list(range(132))
 
-def extract_keypoints(results):
-    pose = np.zeros((len(pose_indices), 3))
-    if results.pose_landmarks:
-        for i, idx in enumerate(pose_indices):
-            res = results.pose_landmarks.landmark[idx]
-            pose[i] = np.array([res.x, res.y, res.z])
+def extract_landmarks(landmarks, indices):
+    output = np.zeros((len(indices), 3))
 
-    face = np.zeros((len(face_indices), 3))
-    if results.face_landmarks:
-        for i, idx in enumerate(face_indices):
-            res = results.face_landmarks.landmark[idx]
-            face[i] = np.array([res.x, res.y, res.z])
+    if landmarks:
+        for i, idx in enumerate(indices):
+            res = landmarks.landmark[idx]
+            output[i] = np.array([res.x, res.y, res.z])
+
+    return output
+
+def extract_keypoints(results):
+    pose = extract_landmarks(results.pose_landmarks, pose_indices)
+    face = extract_landmarks(results.face_landmarks, face_indices)
 
     lh = np.zeros((21, 3))
     if results.left_hand_landmarks:
