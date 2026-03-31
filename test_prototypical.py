@@ -3,35 +3,36 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
+from dotenv import load_dotenv
 from torch.utils.data import DataLoader
 from collections import defaultdict
 from tqdm import tqdm
 
 from prototypical_pipeline import KinematicDataset, KinematicEncoder
 
+load_dotenv(dotenv_path='test_prototypical.env')
+JSON_TRAIN = os.getenv("JSON_TRAIN")
+DIR_TRAIN = os.getenv("DIR_TRAIN")
+JSON_TEST = os.getenv("JSON_TEST")
+DIR_TEST = os.getenv("DIR_TEST")
+MODEL_SAVE_PATH = os.getenv("MODEL_SAVE_PATH")
+PROTOTYPES_SAVE_PATH = os.getenv("PROTOTYPES_SAVE_PATH")
+
 def run_prototypical_test():
-    json_train = 'data/MSASL_train.json'
-    dir_train = 'data/keypoints_train_filtered'
-    json_test = 'data/MSASL_test.json'
-    dir_test = 'data/keypoints_test_filtered'
-    
-    model_save_path = 'data/encoder.pth'
-    prototypes_save_path = 'data/prototypes.pt'
-    
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"[INFO] Using device: {device}\n")
     
-    train_dataset = KinematicDataset(json_train, dir_train, is_train=True)
-    test_dataset = KinematicDataset(json_test, dir_test, word_to_idx=train_dataset.word_to_idx, is_train=False)
+    train_dataset = KinematicDataset(JSON_TRAIN, DIR_TRAIN, is_train=True)
+    test_dataset = KinematicDataset(JSON_TEST, DIR_TEST, word_to_idx=train_dataset.word_to_idx, is_train=False)
     
     num_classes = len(train_dataset.word_to_idx)
     model = KinematicEncoder(num_classes=num_classes).to(device)
     
-    if os.path.exists(model_save_path) and os.path.exists(prototypes_save_path):
+    if os.path.exists(MODEL_SAVE_PATH) and os.path.exists(PROTOTYPES_SAVE_PATH):
         print("[INFO] Loading saved model and prototypes...")
-        model.load_state_dict(torch.load(model_save_path, map_location=device))
+        model.load_state_dict(torch.load(MODEL_SAVE_PATH, map_location=device))
         
-        saved_data = torch.load(prototypes_save_path, map_location=device)
+        saved_data = torch.load(PROTOTYPES_SAVE_PATH, map_location=device)
         prototype_tensor = saved_data['tensor']
         words_list = saved_data['words']
         model.eval()
@@ -66,11 +67,11 @@ def run_prototypical_test():
                 
             print(f"Epoch [{epoch+1:02d}/{num_epochs}] | CE Loss: {running_loss/len(train_loader):.4f} | Train Acc: {acc:.2f}%")
             
-        torch.save(model.state_dict(), model_save_path)
+        torch.save(model.state_dict(), MODEL_SAVE_PATH)
         print("\n=== Extracting Prototypes ===")
         model.eval()
         word_embeddings = defaultdict(list)
-        train_eval_dataset = KinematicDataset(json_train, dir_train, word_to_idx=train_dataset.word_to_idx, is_train=False)
+        train_eval_dataset = KinematicDataset(JSON_TRAIN, DIR_TRAIN, word_to_idx=train_dataset.word_to_idx, is_train=False)
         seq_loader = DataLoader(train_eval_dataset, batch_size=128, shuffle=False, num_workers=4)
         
         with torch.no_grad():
@@ -89,7 +90,7 @@ def run_prototypical_test():
             
         prototype_tensor = torch.tensor(np.array(prototype_matrix)).to(device)
         
-        torch.save({'tensor': prototype_tensor, 'words': words_list}, prototypes_save_path)
+        torch.save({'tensor': prototype_tensor, 'words': words_list}, PROTOTYPES_SAVE_PATH)
         print("[SUCCESS] Model and Prototypes saved!")
 
     print("\n=== EVALUATION ON TEST SET ===")
